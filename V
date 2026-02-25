@@ -1,33 +1,4 @@
--- Создание базы данных
-CREATE DATABASE workout_db;
+ERROR:  CREATE DATABASE cannot run inside a transaction block 
 
--- Подключаемся к базе данных workout_db и выполняем следующий скрипт:
-
--- Создание таблицы training_logs
-CREATE TABLE training_logs (
-    id SERIAL PRIMARY KEY,
-    exercise_name VARCHAR(100) NOT NULL,
-    training_date DATE DEFAULT CURRENT_DATE,
-    sets INTEGER NOT NULL,
-    reps INTEGER NOT NULL,
-    weight_kg DECIMAL(5,2) NOT NULL,
-    difficulty VARCHAR(20) NOT NULL,
-    notes TEXT,
-    
-    -- Ограничения CHECK
-    CONSTRAINT check_sets CHECK (sets > 0),
-    CONSTRAINT check_reps CHECK (reps > 0),
-    CONSTRAINT check_weight CHECK (weight_kg >= 0),
-    CONSTRAINT check_difficulty CHECK (difficulty IN ('легко', 'нормально', 'тяжело'))
-);
-
--- Добавление тестовых записей
-INSERT INTO training_logs (exercise_name, training_date, sets, reps, weight_kg, difficulty, notes) VALUES
-('Жим лежа', '2024-03-15', 3, 10, 60.5, 'нормально', 'Хорошее самочувствие'),
-('Приседания', '2024-03-16', 4, 8, 80.0, 'тяжело', 'Ноги устали'),
-('Тяга верхнего блока', '2024-03-16', 3, 12, 45.0, 'легко', 'Легкая тренировка'),
-('Становая тяга', '2024-03-17', 3, 5, 100.0, 'тяжело', 'Спина немного болит'),
-('Жим гантелей', '2024-03-18', 3, 10, 20.0, 'нормально', 'Хороший пампинг');
-
--- Проверка добавленных записей
-SELECT * FROM training_logs ORDER BY training_date DESC;
+ОШИБКА:  CREATE DATABASE cannot run inside a transaction block
+SQL state: 25001
