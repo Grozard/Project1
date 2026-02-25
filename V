@@ -1,7 +1,8 @@
-C:\Users\Student>cd C:\Users\Student\Desktop\Reposite\workout_tracker
+C:\Users\Student\Desktop\Reposite\workout_tracker\.venv\Scripts\python.exe C:\Users\Student\Desktop\Reposite\workout_tracker\workout_tracker.py 
+Could not find platform independent libraries <prefix>
+==================================================
+🏋️  ДНЕВНИК ТРЕНИРОВОК 🏋️
+==================================================
 
-C:\Users\Student\Desktop\Reposite\workout_tracker>python -m venv .venv
-Unable to copy 'C:\\Program Files\\Python313\\Lib\\venv\\scripts\\nt\\venvlauncher.exe' to 'C:\\Users\\Student\\Desktop\\Reposite\\workout_tracker\\.venv\\Scripts\\python.exe'
-
-C:\Users\Student\Desktop\Reposite\workout_tracker>
-
+🔧 НАСТРОЙКА ПОДКЛЮЧЕНИЯ
+Имя базы данных (по умолчанию workout_db): 
