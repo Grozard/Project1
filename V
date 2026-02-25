@@ -1,11 +1,3 @@
--- Сначала создаем базу данных отдельно
--- Закомментируйте или удалите эту строку, если база данных уже создана
--- CREATE DATABASE workout_db;
-
--- Затем подключаемся к созданной базе данных
--- В pgAdmin выберите базу данных workout_db из выпадающего списка
--- И только после этого выполняйте остальной код:
-
 -- Создание таблицы training_logs
 CREATE TABLE IF NOT EXISTS training_logs (
     id SERIAL PRIMARY KEY,
@@ -24,9 +16,6 @@ CREATE TABLE IF NOT EXISTS training_logs (
     CONSTRAINT check_difficulty CHECK (difficulty IN ('легко', 'нормально', 'тяжело'))
 );
 
--- Очищаем таблицу от предыдущих тестовых данных (если нужно)
-TRUNCATE TABLE training_logs RESTART IDENTITY;
-
 -- Добавление тестовых записей
 INSERT INTO training_logs (exercise_name, training_date, sets, reps, weight_kg, difficulty, notes) VALUES
 ('Жим лежа', '2024-03-15', 3, 10, 60.5, 'нормально', 'Хорошее самочувствие'),
@@ -35,5 +24,5 @@ INSERT INTO training_logs (exercise_name, training_date, sets, reps, weight_kg, 
 ('Становая тяга', '2024-03-17', 3, 5, 100.0, 'тяжело', 'Спина немного болит'),
 ('Жим гантелей', '2024-03-18', 3, 10, 20.0, 'нормально', 'Хороший пампинг');
 
--- Проверка добавленных записей
-SELECT * FROM training_logs ORDER BY training_date DESC;
+-- Проверка
+SELECT * FROM training_logs;
