@@ -1,11 +1,8 @@
-C:\Users\Student\Desktop\reposit\Project1>git push
-To https://github.com/Grozard/Project1
- ! [rejected]        main -> main (fetch first)
-error: failed to push some refs to 'https://github.com/Grozard/Project1'
-hint: Updates were rejected because the remote contains work that you do not
-hint: have locally. This is usually caused by another repository pushing to
-hint: the same ref. If you want to integrate the remote changes, use
-hint: 'git pull' before pushing again.
-hint: See the 'Note about fast-forwards' in 'git push --help' for details.
+C:\Users\Student\Desktop\reposit\Project1>git pull original main --allow-unrelated-histories
+fatal: 'original' does not appear to be a git repository
+fatal: Could not read from remote repository.
+
+Please make sure you have the correct access rights
+and the repository exists.
 
 C:\Users\Student\Desktop\reposit\Project1>
