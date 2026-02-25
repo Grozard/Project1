@@ -5,4 +5,74 @@ Could not find platform independent libraries <prefix>
 ==================================================
 
 🔧 НАСТРОЙКА ПОДКЛЮЧЕНИЯ
-Имя базы данных (по умолчанию workout_db): 
+Имя базы данных (по умолчанию workout_db): workout_db
+Пользователь (по умолчанию postgres): postgres
+Пароль: 1111
+Хост (по умолчанию localhost): localhost
+Порт (по умолчанию 5432): 5432
+✅ Подключение к базе данных успешно установлено
+
+==================================================
+🏋️  ДНЕВНИК ТРЕНИРОВОК 🏋️
+==================================================
+1. 📝 Добавить запись
+2. 📋 Показать все записи
+3. 🔍 Поиск по упражнению
+4. 📅 Фильтр по дате
+5. ✏️  Редактировать запись
+6. 🗑️  Удалить запись
+7. 📊 Статистика прогресса
+8. 🏆 Личные рекорды
+9. 💾 Экспорт в JSON
+10. ⏰ Проверить напоминание
+11. 📈 Статистика за неделю
+0. 🚪 Выход
+--------------------------------------------------
+Выберите пункт меню: 11
+
+📊 Нет данных за последнюю неделю
+
+==================================================
+🏋️  ДНЕВНИК ТРЕНИРОВОК 🏋️
+==================================================
+1. 📝 Добавить запись
+2. 📋 Показать все записи
+3. 🔍 Поиск по упражнению
+4. 📅 Фильтр по дате
+5. ✏️  Редактировать запись
+6. 🗑️  Удалить запись
+7. 📊 Статистика прогресса
+8. 🏆 Личные рекорды
+9. 💾 Экспорт в JSON
+10. ⏰ Проверить напоминание
+11. 📈 Статистика за неделю
+0. 🚪 Выход
+--------------------------------------------------
+Выберите пункт меню: 9
+Traceback (most recent call last):
+  File "C:\Users\Student\Desktop\Reposite\workout_tracker\workout_tracker.py", line 579, in <module>
+    main()
+    ~~~~^^
+  File "C:\Users\Student\Desktop\Reposite\workout_tracker\workout_tracker.py", line 557, in main
+    tracker.export_to_json()
+    ~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\Student\Desktop\Reposite\workout_tracker\workout_tracker.py", line 279, in export_to_json
+    json.dump(results, f, ensure_ascii=False, indent=2)
+    ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\Python313\Lib\json\__init__.py", line 179, in dump
+    for chunk in iterable:
+                 ^^^^^^^^
+  File "C:\Program Files\Python313\Lib\json\encoder.py", line 431, in _iterencode
+    yield from _iterencode_list(o, _current_indent_level)
+  File "C:\Program Files\Python313\Lib\json\encoder.py", line 326, in _iterencode_list
+    yield from chunks
+  File "C:\Program Files\Python313\Lib\json\encoder.py", line 407, in _iterencode_dict
+    yield from chunks
+  File "C:\Program Files\Python313\Lib\json\encoder.py", line 440, in _iterencode
+    o = _default(o)
+  File "C:\Program Files\Python313\Lib\json\encoder.py", line 180, in default
+    raise TypeError(f'Object of type {o.__class__.__name__} '
+                    f'is not JSON serializable')
+TypeError: Object of type Decimal is not JSON serializable
+
+Process finished with exit code 1
