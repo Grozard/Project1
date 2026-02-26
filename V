@@ -1,75 +1,440 @@
-C:\Users\Student\Desktop\Reposite\movie_db\.venv\Scripts\python.exe C:\Users\Student\Desktop\Reposite\movie_db\movie_tracker.py 
+import psycopg2
+from psycopg2 import OperationalError
+import json
+from datetime import datetime
 
+DB_CONFIG = {
+    "database": "movie_db",
+    "user": "postgres",
+    "password": "1111",
+    "host": "localhost",
+    "port": "5432"
+}
+
+
+def connect_db():
+    """Подключается к базе данных и возвращает соединение."""
+    try:
+        conn = psycopg2.connect(**DB_CONFIG)
+        print(" База фильмов подключена")
+        return conn
+    except OperationalError as e:
+        print(f" Ошибка подключения: {e}")
+        print("Проверьте: 1) Запущен ли PostgreSQL 2) Правильный ли пароль")
+        return None
+
+def add_movie(conn, title, date, duration, rating, genre, review):
+    """
+    Добавляет новый просмотренный фильм.
+    Возвращает ID записи.
+    """
+    try:
+        cursor = conn.cursor()
+
+        if not date:
+            date = datetime.now().strftime('%Y-%m-%d')
+
+        sql = """
+            INSERT INTO movie_logs (title, watch_date, duration_min, rating, genre, review)
+            VALUES (%s, %s, %s, %s, %s, %s)
+            RETURNING id;
+        """
+        cursor.execute(sql, (title, date, duration, rating, genre, review))
+        movie_id = cursor.fetchone()[0]
+        conn.commit()
+        cursor.close()
+
+        check_marathon(conn, date)
+
+        print(f" Фильм '{title}' добавлен с ID: {movie_id}")
+        return movie_id
+    except Exception as e:
+        print(f" Ошибка при добавлении фильма: {e}")
+        conn.rollback()
+        return None
+
+
+def get_all_movies(conn):
+    """
+    Возвращает все записи, отсортированные по дате (сначала новые).
+    """
+    try:
+        cursor = conn.cursor()
+        sql = """
+            SELECT id, title, watch_date, duration_min, rating, genre, review 
+            FROM movie_logs 
+            ORDER BY watch_date DESC;
+        """
+        cursor.execute(sql)
+        movies = cursor.fetchall()
+        cursor.close()
+        return movies
+    except Exception as e:
+        print(f" Ошибка при получении списка фильмов: {e}")
+        return []
+
+
+def search_by_title(conn, movie_title):
+    """
+    Ищет фильмы по названию (частичное совпадение, без учёта регистра).
+    """
+    try:
+        cursor = conn.cursor()
+        sql = """
+            SELECT id, title, watch_date, rating 
+            FROM movie_logs 
+            WHERE title ILIKE %s 
+            ORDER BY watch_date DESC;
+        """
+        cursor.execute(sql, ('%' + movie_title + '%',))
+        movies = cursor.fetchall()
+        cursor.close()
+        return movies
+    except Exception as e:
+        print(f" Ошибка при поиске: {e}")
+        return []
+
+
+def filter_by_rating(conn, min_rating):
+    """
+    Возвращает фильмы с оценкой не ниже указанной.
+    """
+    try:
+        cursor = conn.cursor()
+        sql = """
+            SELECT id, title, watch_date, rating 
+            FROM movie_logs 
+            WHERE rating >= %s 
+            ORDER BY rating DESC;
+        """
+        cursor.execute(sql, (min_rating,))
+        movies = cursor.fetchall()
+        cursor.close()
+        return movies
+    except Exception as e:
+        print(f" Ошибка при фильтрации: {e}")
+        return []
+
+
+def update_movie(conn, log_id, new_rating, new_review):
+    """
+    Обновляет оценку и отзыв в существующей записи.
+    """
+    try:
+        cursor = conn.cursor()
+        sql = "UPDATE movie_logs SET rating = %s, review = %s WHERE id = %s;"
+        cursor.execute(sql, (new_rating, new_review, log_id))
+        conn.commit()
+        cursor.close()
+        print(f" Запись с ID {log_id} обновлена.")
+        return True
+    except Exception as e:
+        print(f" Ошибка при обновлении: {e}")
+        conn.rollback()
+        return False
+
+
+def delete_movie(conn, log_id):
+    """
+    Удаляет запись по ID.
+    """
+    try:
+        cursor = conn.cursor()
+        sql = "DELETE FROM movie_logs WHERE id = %s;"
+        cursor.execute(sql, (log_id,))
+        conn.commit()
+        cursor.close()
+        print(f" Запись с ID {log_id} удалена.")
+        return True
+    except Exception as e:
+        print(f" Ошибка при удалении: {e}")
+        conn.rollback()
+        return False
+
+
+def get_cinema_stats(conn):
+    """
+    Возвращает словарь статистики:
+    - общее количество просмотренных фильмов
+    - средняя оценка за всё время
+    - общее время, потраченное на кино (в часах)
+    - самый популярный жанр
+    """
+    stats = {}
+    try:
+        cursor = conn.cursor()
+
+        cursor.execute("SELECT COUNT(*), AVG(rating) FROM movie_logs;")
+        count, avg_rating = cursor.fetchone()
+        stats['total_movies'] = count
+        stats['average_rating'] = round(avg_rating, 2) if avg_rating else 0
+
+        cursor.execute("SELECT SUM(duration_min) FROM movie_logs;")
+        total_minutes = cursor.fetchone()[0]
+        stats['total_hours'] = round(total_minutes / 60, 2) if total_minutes else 0
+
+        cursor.execute("""
+            SELECT genre, COUNT(*) as count
+            FROM movie_logs
+            GROUP BY genre
+            ORDER BY count DESC
+            LIMIT 1;
+        """)
+        result = cursor.fetchone()
+        stats['most_popular_genre'] = result[0] if result else 'Нет данных'
+
+        cursor.close()
+        return stats
+    except Exception as e:
+        print(f" Ошибка при подсчете статистики: {e}")
+        return {}
+
+def get_genre_rating(conn):
+    """
+    Доп. задание 1: Топ жанров - средняя оценка для каждого жанра.
+    """
+    try:
+        cursor = conn.cursor()
+        sql = """
+            SELECT genre, AVG(rating) as avg_rating, COUNT(*) as count
+            FROM movie_logs
+            GROUP BY genre
+            ORDER BY avg_rating DESC;
+        """
+        cursor.execute(sql)
+        genres = cursor.fetchall()
+        cursor.close()
+        return genres
+    except Exception as e:
+        print(f" Ошибка при получении статистики по жанрам: {e}")
+        return []
+
+
+def export_to_json(conn):
+    """
+    Доп. задание 2: Экспорт всей коллекции в JSON файл.
+    """
+    try:
+        cursor = conn.cursor()
+        sql = "SELECT id, title, watch_date, duration_min, rating, genre, review FROM movie_logs ORDER BY watch_date DESC;"
+        cursor.execute(sql)
+        movies = cursor.fetchall()
+        cursor.close()
+
+        movies_list = []
+        for movie in movies:
+            movies_list.append({
+                'id': movie[0],
+                'title': movie[1],
+                'watch_date': str(movie[2]),
+                'duration_min': movie[3],
+                'rating': movie[4],
+                'genre': movie[5],
+                'review': movie[6]
+            })
+
+        filename = f'collection_{datetime.now().strftime("%Y%m%d_%H%M%S")}.json'
+        with open(filename, 'w', encoding='utf-8') as f:
+            json.dump(movies_list, f, ensure_ascii=False, indent=4)
+
+        print(f" Экспортировано {len(movies_list)} фильмов в файл {filename}")
+        return True
+    except Exception as e:
+        print(f" Ошибка при экспорте: {e}")
+        return False
+
+
+def check_marathon(conn, watch_date):
+    """
+    Доп. задание 3: Проверка на кино-марафон (более 3 фильмов за день).
+    """
+    try:
+        cursor = conn.cursor()
+        sql = "SELECT COUNT(*) FROM movie_logs WHERE watch_date = %s;"
+        cursor.execute(sql, (watch_date,))
+        count = cursor.fetchone()[0]
+        cursor.close()
+
+        if count >= 3:
+            print(f"  ВНИМАНИЕ: Кино-марафон! Сегодня ({watch_date}) ты посмотрела уже {count} фильмов!")
+        return count
+    except Exception as e:
+        print(f" Ошибка при проверке марафона: {e}")
+        return 0
+
+def display_movies(movies, detailed=False):
+    """
+    Красиво выводит список фильмов.
+    """
+    if not movies:
+        print(" Пора начать смотреть кино!")
+        return
+
+    print("\n" + "-" * 80)
+    for movie in movies:
+        if detailed and len(movie) >= 7:
+            print(f"ID: {movie[0]} | {movie[1]} ({movie[2]})")
+            print(f"   Длительность: {movie[3]} мин | Оценка: {movie[4]}/10 | Жанр: {movie[5]}")
+            print(f"   Отзыв: {movie[6] if movie[6] else 'Нет отзыва'}")
+            print("-" * 40)
+        elif len(movie) >= 4:
+            print(f"ID: {movie[0]} | {movie[1]} ({movie[2]}) - Оценка: {movie[3]}/10")
+    print("-" * 80)
+
+
+def get_valid_input(prompt, input_type='str', valid_range=None, allow_empty=False):
+    """
+    Универсальная функция для ввода с проверкой.
+    """
+    while True:
+        user_input = input(prompt).strip()
+
+        if allow_empty and user_input == '':
+            return None
+
+        try:
+            if input_type == 'int':
+                value = int(user_input)
+                if valid_range:
+                    if value < valid_range[0] or value > valid_range[1]:
+                        print(f" Пожалуйста, введите число от {valid_range[0]} до {valid_range[1]}.")
+                        continue
+                return value
+            elif input_type == 'float':
+                value = float(user_input)
+                if valid_range:
+                    if value < valid_range[0] or value > valid_range[1]:
+                        print(f" Пожалуйста, введите число от {valid_range[0]} до {valid_range[1]}.")
+                        continue
+                return value
+            else:  # str
+                if not user_input and not allow_empty:
+                    print(" Поле не может быть пустым.")
+                    continue
+                return user_input
+        except ValueError:
+            print(f" Ошибка ввода. Пожалуйста, введите корректное значение типа {input_type}.")
+
+
+def main_menu():
+    """
+    Главный цикл программы с меню.
+    """
+    conn = connect_db()
+    if not conn:
+        input("Нажмите Enter для выхода...")
+        return
+
+    while True:
+        print("\n" + "=" * 50)
+        print("             ДНЕВНИК КИНОМАНА ")
+        print("=" * 50)
+        print("1.   Добавить фильм")
+        print("2.   Показать все фильмы")
+        print("3.   Найти фильм по названию")
+        print("4.   Фильтровать по рейтингу (от и выше)")
+        print("5.   Редактировать оценку/отзыв")
+        print("6.   Удалить запись")
+        print("7.   Показать статистику")
+        print("8.   Топ жанров (средняя оценка)")
+        print("9.   Экспорт в JSON")
+        print("0.   Выход")
+        print("=" * 50)
+
+        choice = get_valid_input("Ваш выбор: ", input_type='int', valid_range=(0, 9))
+
+        if choice == 1:
+            print("\n---  Добавление фильма ---")
+            title = get_valid_input("Название фильма: ")
+            date = get_valid_input("Дата просмотра (ГГГГ-ММ-ДД, Enter - сегодня): ", allow_empty=True)
+            duration = get_valid_input("Длительность (мин): ", input_type='int', valid_range=(1, 1000))
+            rating = get_valid_input("Оценка (1-10): ", input_type='int', valid_range=(1, 10))
+
+            print("\nВыберите жанр:")
+            print("1. Боевик")
+            print("2. Комедия")
+            print("3. Драма")
+            print("4. Фантастика")
+            print("5. Другое")
+            genre_choice = get_valid_input("Ваш выбор (1-5): ", input_type='int', valid_range=(1, 5))
+
+            genres = ['Боевик', 'Комедия', 'Драма', 'Фантастика', 'Другое']
+            genre = genres[genre_choice - 1]
+
+            review = input("Отзыв (необязательно): ")
+
+            add_movie(conn, title, date, duration, rating, genre, review)
+
+        elif choice == 2:
+            print("\n---  Все фильмы (сначала новые) ---")
+            movies = get_all_movies(conn)
+            display_movies(movies, detailed=True)
+
+        elif choice == 3:
+            print("\n---  Поиск по названию ---")
+            search_term = get_valid_input("Введите часть названия: ")
+            results = search_by_title(conn, search_term)
+            display_movies(results)
+
+        elif choice == 4:
+            print("\n---  Фильтрация по рейтингу ---")
+            min_rating = get_valid_input("Минимальная оценка (1-10): ", input_type='int', valid_range=(1, 10))
+            filtered = filter_by_rating(conn, min_rating)
+            display_movies(filtered)
+
+        elif choice == 5:
+            print("\n---   Редактирование записи ---")
+            movie_id = get_valid_input("Введите ID фильма для редактирования: ", input_type='int')
+            new_rating = get_valid_input("Новая оценка (1-10): ", input_type='int', valid_range=(1, 10))
+            new_review = input("Новый отзыв: ")
+            update_movie(conn, movie_id, new_rating, new_review)
+
+        elif choice == 6:
+            print("\n---   Удаление записи ---")
+            movie_id = get_valid_input("Введите ID фильма для удаления: ", input_type='int')
+
+            confirm = input(f"Вы уверены, что хотите удалить запись с ID {movie_id}? (д/н): ")
+            if confirm.lower() in ['д', 'да', 'y', 'yes']:
+                delete_movie(conn, movie_id)
+            else:
+                print(" Удаление отменено.")
+
+        elif choice == 7:
+            print("\n---  Статистика ---")
+            stats = get_cinema_stats(conn)
+            if stats:
+                print(f"  Всего фильмов: {stats['total_movies']}")
+                print(f"  Средняя оценка: {stats['average_rating']}")
+                print(f"  Всего времени: {stats['total_hours']} ч.")
+                print(f"  Любимый жанр: {stats['most_popular_genre']}")
+
+        elif choice == 8:
+            print("\n---  Топ жанров (средняя оценка) ---")
+            genres = get_genre_rating(conn)
+            if genres:
+                print("\nЖанр         | Сред. оценка | Кол-во")
+                print("-" * 40)
+                for genre, avg_rating, count in genres:
+                    print(f"{genre:<12} | {avg_rating:.2f}          | {count}")
+            else:
+                print("Нет данных по жанрам.")
+
+        elif choice == 9:
+            print("\n---  Экспорт в JSON ---")
+            export_to_json(conn)
+
+        elif choice == 0:
+            print("\n Выход из программы. До свидания!")
+            conn.close()
+            break
+
+        input("\nНажмите Enter, чтобы продолжить...")
+
+if __name__ == "__main__":
+    print("""
     ╔═══════════════════════════════════════╗
     ║     ДОБРО ПОЖАЛОВАТЬ В ДНЕВНИК        ║
     ║            КИНОМАНА!                  ║
     ╚═══════════════════════════════════════╝
-    
- База фильмов подключена
-
-==================================================
-             ДНЕВНИК КИНОМАНА 
-==================================================
-1.   Добавить фильм
-2.   Показать все фильмы
-3.   Найти фильм по названию
-4.   Фильтровать по рейтингу (от и выше)
-5.   Редактировать оценку/отзыв
-6.   Удалить запись
-7.   Показать статистику
-8.   Топ жанров (средняя оценка)
-9.   Экспорт в JSON
-0.   Выход
-==================================================
-Ваш выбор: 2
-
----  Все фильмы (сначала новые) ---
-
---------------------------------------------------------------------------------
-ID: 5 | Матрица (2023-11-05)
-   Длительность: 136 мин | Оценка: 10/10 | Жанр: Фантастика
-   Отзыв: Перевернула сознание.
-----------------------------------------
-ID: 4 | Крепкий орешек (2023-11-01)
-   Длительность: 132 мин | Оценка: 8/10 | Жанр: Боевик
-   Отзыв: Классика жанра.
-----------------------------------------
-ID: 3 | Зеленая книга (2023-10-22)
-   Длительность: 130 мин | Оценка: 9/10 | Жанр: Драма
-   Отзыв: Отличная актерская игра.
-----------------------------------------
-ID: 2 | 1+1 (2023-10-20)
-   Длительность: 112 мин | Оценка: 9/10 | Жанр: Комедия
-   Отзыв: Очень душевный фильм.
-----------------------------------------
-ID: 1 | Начало (2023-10-15)
-   Длительность: 148 мин | Оценка: 10/10 | Жанр: Фантастика
-   Отзыв: Гениально! Смотрю второй раз.
-----------------------------------------
---------------------------------------------------------------------------------
-
-Нажмите Enter, чтобы продолжить...
-
-
-==================================================
-             ДНЕВНИК КИНОМАНА 
-==================================================
-1.   Добавить фильм
-2.   Показать все фильмы
-3.   Найти фильм по названию
-4.   Фильтровать по рейтингу (от и выше)
-5.   Редактировать оценку/отзыв
-6.   Удалить запись
-7.   Показать статистику
-8.   Топ жанров (средняя оценка)
-9.   Экспорт в JSON
-0.   Выход
-==================================================
-Ваш выбор:  Ошибка ввода. Пожалуйста, введите корректное значение типа int.
-Ваш выбор: 
- Ошибка ввода. Пожалуйста, введите корректное значение типа int.
-Ваш выбор: 
-
- Ошибка ввода. Пожалуйста, введите корректное значение типа int.
-Ваш выбор:  Ошибка ввода. Пожалуйста, введите корректное значение типа int.
-Ваш выбор: 
+    """)
+    main_menu()
